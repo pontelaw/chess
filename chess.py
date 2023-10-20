@@ -7,6 +7,9 @@
 # Tune and test eval function
 # Possibly AI vs AI training for practice
 # Doubled pawn penalty
+# Queen and bishop on same diagonal buff
+# pawn diagonal buff
+# higher buff for moving bishop and knight early
 import copy
 # board creation
 global board
@@ -20,7 +23,10 @@ global inCheckBy
 inCheckBy = ""
 global turn_counter
 turn_counter = 0
-
+global tookpiece
+tookpiece = "             "
+global setTookPieceFlag
+setTookPieceFlag = False
 # pieces
 class Rook:
     # constructor
@@ -33,11 +39,12 @@ class Rook:
     def ezString(self):
         return " Rook "
     # move
-    def move(self, startRow, startCol, endRow, endCol):
+    def move(self, startRow, startCol, endRow, endCol, flag):
         # verify that the move stated is a legal rook move
         if verifyRook(startRow, startCol, endRow, endCol):
             return "That is not a valid move. Try again."
         global board
+        global tookpiece
         # horizontal movement
         if startRow == endRow:
             if startCol > endCol:
@@ -74,10 +81,11 @@ class Rook:
                 hold = board[endRow][endCol]
                 board[endRow][endCol] = self
                 board[startRow][startCol] = "              "
-                if isCheck(self.owner):
+                if isCheck(self.owner, flag):
                     board[endRow][endCol] = hold
                     board[startRow][startCol] = self
                     return "You are in check or this move would put you in check and is illegal. Try again."
+                tookpiece = detTP2(hold)
                 self.hasMoved = True
                 return "Success"
         else:
@@ -94,8 +102,9 @@ class Knight:
     def ezString(self):
         return " Knight "
     # move
-    def move(self, startRow, startCol, endRow, endCol):
+    def move(self, startRow, startCol, endRow, endCol, flag):
         global board
+        global tookpiece
         # ensure that move is a legal knight move
         if (startRow - endRow == 2 and startCol - endCol == 1) or (startRow - endRow == 2 and endCol - startCol == 1) or (endRow - startRow == 2 and endCol - startCol == 1) or (endRow - startRow == 2 and startCol - endCol == 1) or (startRow - endRow == 1 and startCol - endCol == 2) or (startRow - endRow == 1 and endCol - startCol == 2) or (endRow - startRow == 1 and endCol - startCol == 2) or (endRow - startRow == 1 and startCol - endCol == 2):
             # ensure spot is empty or not your own piece in case of a capture
@@ -103,10 +112,11 @@ class Knight:
                 hold = board[endRow][endCol]
                 board[endRow][endCol] = self
                 board[startRow][startCol] = "              "
-                if isCheck(self.owner):
+                if isCheck(self.owner, flag):
                     board[endRow][endCol] = hold
                     board[startRow][startCol] = self
                     return "would put you in check or does not deal with current check, try again"
+                tookpiece = detTP2(hold)
                 return "Success"
             else:
                 return "space isn't empty and is occupied by one of your pieces"
@@ -120,10 +130,11 @@ class Bishop:
         return " " + self.owner + " Bishop "
     def ezString(self):
         return " Bishop "
-    def move(self, startRow, startCol, endRow, endCol):
+    def move(self, startRow, startCol, endRow, endCol, flag):
         if verifyBishop(startRow, startCol, endRow, endCol):
             return "illegal move"
         global board
+        global tookpiece
         if startRow > endRow and startCol > endCol:
             counter1 = startRow - 1
             counter2 = startCol - 1
@@ -164,10 +175,11 @@ class Bishop:
                 hold = board[endRow][endCol]
                 board[endRow][endCol] = self
                 board[startRow][startCol] = "              "
-                if isCheck(self.owner):
+                if isCheck(self.owner, flag):
                     board[endRow][endCol] = hold
                     board[startRow][startCol] = self
                     return "you are in check / this move would put you in check and is illegal"
+                tookpiece = detTP2(hold)
                 return "Success"
         else:
                 return "you cannot take your own piece"
@@ -203,8 +215,9 @@ class Pawn:
                             board[row][col] = q
                         else:
                             return "illegal promotion, can only promote to Queen, Rook, Knight, or Bishop"
-    def move(self, x, y, m, n):
+    def move(self, x, y, m, n, flag):
         global board
+        global tookpiece
         if self.owner == "White":
             
                 if y == n:
@@ -214,10 +227,11 @@ class Pawn:
                             board[m][n] = self
                             board[x][y] = "              "
                             
-                            if isCheck(self.owner):
+                            if isCheck(self.owner, flag):
                                 board[m][n] = hold
                                 board[x][y] = self
                                 return "would put you in check, illegal OR does not prevent you from being in check"
+                            tookpiece = detTP2(hold)
                             self.hasMoved = True
                             return "Success"
                         else:
@@ -228,10 +242,11 @@ class Pawn:
                                 hold = board[m][n]
                                 board[m][n] = self
                                 board[x][y] = "              "
-                                if isCheck(self.owner):
+                                if isCheck(self.owner, flag):
                                     board[m][n] = hold
                                     board[x][y] = self
                                     return "would put you in check, illegal OR does not prevent you from being in check"
+                                tookpiece = detTP2(hold)
                                 self.promote(m, n)
                                 self.hasMoved = True
                                 return "Success"
@@ -247,11 +262,12 @@ class Pawn:
                                     hold = board[m][n]
                                     board[m][n] = self
                                     board[x][y] = "              "
-                                    if isCheck(self.owner):
+                                    if isCheck(self.owner, flag):
                                         board[m][n] = hold
                                         board[x][y] = self
                                         return "would put you in check, illegal OR does not prevent you from being in check"
                                     self.promote(m, n)
+                                    tookpiece = detTP2(hold)
                                     self.hasMoved = True
                                     return "Success"
                                 else:
@@ -270,10 +286,11 @@ class Pawn:
                             hold = board[m][n]
                             board[m][n] = self
                             board[x][y] = "              "
-                            if isCheck(self.owner):
+                            if isCheck(self.owner, flag):
                                 board[m][n] = hold
                                 board[x][y] = self
                                 return "would put you in check, illegal OR does not prevent you from being in check"
+                            tookpiece = detTP2(hold)
                             self.hasMoved = True
                             return "Success"
                         else:
@@ -284,10 +301,11 @@ class Pawn:
                                 hold = board[m][n]
                                 board[m][n] = self
                                 board[x][y] = "              "
-                                if isCheck(self.owner):
+                                if isCheck(self.owner, flag):
                                     board[m][n] = hold
                                     board[x][y] = self
                                     return "would put you in check, illegal OR does not prevent you from being in check"
+                                tookpiece = detTP2(hold)
                                 self.promote(m, n)
                                 self.hasMoved = True
                                 return "Success"
@@ -303,10 +321,11 @@ class Pawn:
                                     hold = board[m][n]
                                     board[m][n] = self
                                     board[x][y] = "              "
-                                    if isCheck(self.owner):
+                                    if isCheck(self.owner, flag):
                                         board[m][n] = hold
                                         board[x][y] = self
                                         return "would put you in check, illegal OR does not prevent you from being in check"
+                                    tookpiece = detTP2(hold)
                                     self.promote(m, n)
                                     self.hasMoved = True
                                     return "Success"
@@ -326,19 +345,19 @@ class Queen:
         return " " + self.owner + " Queen  "
     def ezString(self):
         return " Queen "
-    def move(self, startRow, startCol, endRow, endCol):
+    def move(self, startRow, startCol, endRow, endCol, flag):
         if verifyRook(startRow, startCol, endRow, endCol) and verifyBishop(startRow, startCol, endRow, endCol):
             return "Illegal queen move."
         if not verifyRook(startRow, startCol, endRow, endCol):
             r = Rook(self.owner)
         if not verifyBishop(startRow, startCol, endRow, endCol):
             r = Bishop(self.owner)
-        status = r.move(startRow, startCol, endRow, endCol)
+        status = r.move(startRow, startCol, endRow, endCol, flag)
         if status == "Success":
             hold = board[endRow][endCol]
             board[endRow][endCol] = self
             board[startRow][startCol] = "              "
-            if isCheck(self.owner):
+            if isCheck(self.owner, flag):
                 board[endRow][endCol] = hold
                 board[startRow][startCol] = self
                 return "would put you in check or does not prevent you from being in check"
@@ -360,11 +379,11 @@ class King:
     # check if king has moved or been checked. if so, failure
     # check if direction of move still has rook unmoved in original position
     # check if there is anything blocking, or if there is something checking in the way
-    def castle(self, startRow, startCol, direction):
+    def castle(self, startRow, startCol, direction, flag):
         global board
         global whiteKingPos
         global blackKingPos
-        if self.hasMoved == False and self.hasBeenChecked == False and not isCheck(self.owner):
+        if self.hasMoved == False and self.hasBeenChecked == False and not isCheck(self.owner, flag):
             if direction == "Queenside":
                 if isinstance(board[startRow][0], Rook):
                     if board[startRow][0].hasMoved == False:
@@ -375,7 +394,7 @@ class King:
                             else:
                                 blackKingPos = [startRow, 3]
                             board[startRow][4] = "              "
-                            if isCheck(self.owner):
+                            if isCheck(self.owner, flag):
                                 board[startRow][startCol] = self
                                 if self.owner == "White":
                                     whiteKingPos = [startRow, startCol]
@@ -389,7 +408,7 @@ class King:
                             else:
                                 blackKingPos = [startRow, 2]
                             board[startRow][3] = "              "
-                            if isCheck(self.owner):
+                            if isCheck(self.owner, flag):
                                 board[startRow][startCol] = self
                                 if self.owner == "White":
                                     whiteKingPos = [startRow, startCol]
@@ -418,7 +437,7 @@ class King:
                             else:
                                 blackKingPos = [startRow, 5]
                             board[startRow][4] = "              "
-                            if isCheck(self.owner):
+                            if isCheck(self.owner, flag):
                                 board[startRow][startCol] = self
                                 if self.owner == "White":
                                     whiteKingPos = [startRow, startCol]
@@ -432,7 +451,7 @@ class King:
                             else:
                                 blackKingPos = [startRow, 6]
                             board[startRow][5] = "              "
-                            if isCheck(self.owner):
+                            if isCheck(self.owner, flag):
                                 board[startRow][startCol] = self
                                 if self.owner == "White":
                                     whiteKingPos = [startRow, startCol]
@@ -454,14 +473,15 @@ class King:
         else:
             return "either you are trying to illegally castle (your king has been moved already, or has been in check) or this is an illegal king move otherwise."
 
-    def move(self, startRow, startCol, endRow, endCol):
+    def move(self, startRow, startCol, endRow, endCol, flag):
         global board
         global whiteKingPos
         global blackKingPos
+        global tookpiece
         if startCol - endCol > 1:
-            return self.castle(startRow, startCol, "Queenside")
+            return self.castle(startRow, startCol, "Queenside", flag)
         if endCol - startCol > 1:
-            return self.castle(startRow, startCol, "Kingside" )
+            return self.castle(startRow, startCol, "Kingside" , flag)
         if abs(startRow - endRow) > 1:
             return "Illegal king move, too far"
         if board[endRow][endCol] == "              " or (self.owner == "White" and board[endRow][endCol].owner == "Black") or (self.owner == "Black" and board[endRow][endCol].owner == "White"):
@@ -472,7 +492,7 @@ class King:
                 else:
                     blackKingPos = [endRow, endCol]
                 board[startRow][startCol] = "              "
-                if isCheck(self.owner):
+                if isCheck(self.owner, flag):
                     board[endRow][endCol] = hold
                     if self.owner == "White":
                         whiteKingPos = [startRow, startCol]
@@ -480,6 +500,7 @@ class King:
                         blackKingPos = [startRow, startCol]
                     board[startRow][startCol] = self
                     return "you are in check / this move would put you in check and is illegal"
+                tookpiece = detTP2(hold)
                 self.hasMoved = True
                 return "Success"
         else:
@@ -489,7 +510,7 @@ class King:
 # checks if the referenced player is in check
 # check if first piece on kings column and row is a foe and is a rook or queen
 # check if first piece on each diagonal is a queen or bishop, and if the immediate diagonal spots are enemy pawns
-def isCheck(player):
+def isCheck(player, flag):
     global board
     global whiteKingPos
     global blackKingPos
@@ -509,6 +530,8 @@ def isCheck(player):
             loop = loop - 1
         else:
             if board[kingR][loop].owner != player and (isinstance(board[kingR][loop], Queen) or isinstance(board[kingR][loop], Rook)):
+                if flag == 1:
+                    board[kingR][kingC].hasBeenChecked = True
                 return True
             break
     # check row to right
@@ -518,6 +541,8 @@ def isCheck(player):
             loop = loop + 1
         else:
             if board[kingR][loop].owner != player and (isinstance(board[kingR][loop], Queen) or isinstance(board[kingR][loop], Rook)):
+                if flag == 1:
+                    board[kingR][kingC].hasBeenChecked = True
                 return True
             break
     # check column up
@@ -527,6 +552,8 @@ def isCheck(player):
             loop = loop - 1
         else:
             if board[loop][kingC].owner != player and (isinstance(board[loop][kingC], Queen) or isinstance(board[loop][kingC], Rook)):
+                if flag == 1:
+                    board[kingR][kingC].hasBeenChecked = True
                 return True
             break
     # check column down
@@ -536,12 +563,18 @@ def isCheck(player):
             loop = loop + 1
         else:
             if board[loop][kingC].owner != player and (isinstance(board[loop][kingC], Queen) or isinstance(board[loop][kingC], Rook)):
+                if flag == 1:
+                    board[kingR][kingC].hasBeenChecked = True
                 return True
             break
     # check if immediate diags are enemy pawns
-    if player == "White" and kingR != 0 and ((isinstance(board[kingR - 1][kingC + 1], Pawn) and board[kingR - 1][kingC + 1].owner != player) or (isinstance(board[kingR - 1][kingC - 1], Pawn) and board[kingR - 1][kingC - 1].owner != player)):
+    if player == "White" and kingR != 0 and ((kingR - 1 >= 0 and kingC + 1 < 8 and isinstance(board[kingR - 1][kingC + 1], Pawn) and board[kingR - 1][kingC + 1].owner != player) or (kingR - 1 >= 0 and kingC - 1 >= 0 and isinstance(board[kingR - 1][kingC - 1], Pawn) and board[kingR - 1][kingC - 1].owner != player)):
+        if flag == 1:
+                    board[kingR][kingC].hasBeenChecked = True
         return True
     if player == "Black" and kingR != 7 and ((kingR + 1 < 8 and kingC + 1 < 8 and isinstance(board[kingR + 1][kingC + 1], Pawn) and board[kingR + 1][kingC + 1].owner != player) or (kingR + 1 < 8 and kingC - 1 >= 0 and isinstance(board[kingR + 1][kingC - 1], Pawn) and board[kingR + 1][kingC - 1].owner != player)):
+        if flag == 1:
+                    board[kingR][kingC].hasBeenChecked = True
         return True
     # check up left diagonal
     loop = kingR - 1
@@ -553,6 +586,8 @@ def isCheck(player):
         else:
             if board[loop][loop2].owner != player and (isinstance(board[loop][loop2], Queen) or isinstance(board[loop][loop2], Bishop)):
                 # print("is getting here some how " + str(loop) + " " + str(loop2))
+                if flag == 1:
+                    board[kingR][kingC].hasBeenChecked = True
                 return True
             break
     # check up right diagonal
@@ -564,6 +599,8 @@ def isCheck(player):
             loop2 = loop2 + 1
         else:
             if board[loop][loop2].owner != player and (isinstance(board[loop][loop2], Queen) or isinstance(board[loop][loop2], Bishop)):
+                if flag == 1:
+                    board[kingR][kingC].hasBeenChecked = True
                 return True
             break
     # check down left diagonal
@@ -575,6 +612,8 @@ def isCheck(player):
             loop2 = loop2 - 1
         else:
             if board[loop][loop2].owner != player and (isinstance(board[loop][loop2], Queen) or isinstance(board[loop][loop2], Bishop)):
+                if flag == 1:
+                    board[kingR][kingC].hasBeenChecked = True
                 return True
             break
     # check down right diagonal
@@ -586,8 +625,42 @@ def isCheck(player):
             loop2 = loop2 + 1
         else:
             if board[loop][loop2].owner != player and (isinstance(board[loop][loop2], Queen) or isinstance(board[loop][loop2], Bishop)):
+                if flag == 1:
+                    board[kingR][kingC].hasBeenChecked = True
                 return True
             break
+    if kingR + 1 <= 7 and kingC + 2 <= 7 and isinstance(board[kingR + 1][kingC + 2], Knight) and board[kingR + 1][kingC + 2].owner != player:
+        if flag == 1:
+            board[kingR][kingC].hasBeenChecked = True
+        return True
+    if kingR + 1 <= 7 and kingC - 2 >= 0 and isinstance(board[kingR + 1][kingC - 2], Knight) and board[kingR + 1][kingC - 2].owner != player:
+        if flag == 1:
+            board[kingR][kingC].hasBeenChecked = True
+        return True
+    if kingR - 1 >= 0 and kingC + 2 <= 7 and isinstance(board[kingR - 1][kingC + 2], Knight) and board[kingR - 1][kingC + 2].owner != player:
+        if flag == 1:
+            board[kingR][kingC].hasBeenChecked = True
+        return True
+    if kingR - 1 >= 0 and kingC - 2 >= 0 and isinstance(board[kingR - 1][kingC - 2], Knight) and board[kingR - 1][kingC - 2].owner != player:
+        if flag == 1:
+            board[kingR][kingC].hasBeenChecked = True
+        return True
+    if kingR + 2 <= 7 and kingC + 1 <= 7 and isinstance(board[kingR + 2][kingC + 1], Knight) and board[kingR + 2][kingC + 1].owner != player:
+        if flag == 1:
+            board[kingR][kingC].hasBeenChecked = True
+        return True
+    if kingR + 2 <= 7 and kingC - 1 >= 0 and isinstance(board[kingR + 2][kingC - 1], Knight) and board[kingR + 2][kingC - 1].owner != player:
+        if flag == 1:
+            board[kingR][kingC].hasBeenChecked = True
+        return True
+    if kingR - 2 >= 0 and kingC + 1 <= 7 and isinstance(board[kingR - 2][kingC + 1], Knight) and board[kingR - 2][kingC + 1].owner != player:
+        if flag == 1:
+            board[kingR][kingC].hasBeenChecked = True
+        return True
+    if kingR - 2 >= 0 and kingC - 1 >= 0 and isinstance(board[kingR - 2][kingC - 1], Knight) and board[kingR - 2][kingC - 1].owner != player:
+        if flag == 1:
+            board[kingR][kingC].hasBeenChecked = True
+        return True
     return False
 
 def verifyRook(startRow, startCol, endRow, endCol):
@@ -599,13 +672,12 @@ def verifyBishop(startRow, startCol, endRow, endCol):
 # we do this by if pawn: checking if it has moved, 1 to 2 spaces forward based on that. Check if can capture on diagonals, or can enpassant
 def generateMoves(player):
     moves = []
-    key = {0:'a',1:'b',2:'c',3:'d',4:'e',5:'f',6:'g',7:'h'}
+    key = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h'}
     key2 = {0 : 8, 1 : 7, 2 : 6, 3 : 5, 4 : 4, 5 : 3, 6 : 2, 7 : 1, 8 : 0}
     global board
     x = 0
-    y = 0
-    testBoard = copy.deepcopy(board)
-    while x < 8:
+    y = 0            # could just copy piece thats moving and piece that is being taken, move, check for success, replace and recopy. Add check flag that won't trigger check function when moving pieces back
+    while x < 8: # instead of copying maybe just save flag states and change them back after moving back
         y = 0
         while y < 8:
             piece = board[x][y]
@@ -613,113 +685,173 @@ def generateMoves(player):
                 next
             elif piece.owner == player:
                 if isinstance(piece, Pawn):
+                    save_moved = piece.hasMoved
                     if player == "White":
-                        if x - 1 >= 0 and piece.move(x, y, x - 1, y) == "Success":
+                        if x - 1 >= 0:
+                            hold = board[x-1][y]
+                        if x - 1 >= 0 and (board[x-1][y] == "              " or board[x-1][y].owner != player) and piece.move(x, y, x - 1, y, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[y] + str(key2[x - 1]))
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        if x - 2 >= 0 and piece.move(x, y, x - 2, y) == "Success":
+                            board[x][y] = piece
+                            board[x-1][y] = hold
+                            piece.hasMoved = save_moved
+                        if x - 2 >= 0:
+                            hold = board[x-2][y]
+                        if x - 2 >= 0 and (board[x-2][y] == "              " or board[x-2][y].owner != player) and piece.move(x, y, x - 2, y, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[y] + str(key2[x - 2]))
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        if x - 1 >= 0 and y - 1 >= 0 and piece.move(x, y, x - 1, y - 1) == "Success":
+                            board[x][y] = piece
+                            board[x-2][y] = hold
+                            piece.hasMoved = save_moved
+                        if x -1>= 0 and y - 1 >= 0:
+                             hold = board[x-1][y-1]
+                        if x - 1 >= 0 and y - 1 >= 0 and (board[x-1][y-1] == "              " or board[x-1][y-1].owner != player) and  piece.move(x, y, x - 1, y - 1, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[y - 1] + str(key2[x - 1]))
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        if x - 1 >= 0 and y + 1 <= 7 and piece.move(x, y, x - 1, y + 1) == "Success":
+                            board[x][y] = piece
+                            board[x-1][y-1] = hold
+                            piece.hasMoved = save_moved
+                        if x -1>= 0 and y + 1 <= 7:
+                            hold = board[x-1][y+1]
+                        if x - 1 >= 0 and y + 1 <= 7 and (board[x-1][y+1] == "              " or board[x-1][y+1].owner != player ) and  piece.move(x, y, x - 1, y + 1, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[y + 1] + str(key2[x - 1]))
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
+                            board[x][y] = piece
+                            board[x-1][y+1] = hold
+                            piece.hasMoved = save_moved
                     else:
-                        if x + 1 <= 7 and piece.move(x, y, x + 1, y) == "Success":
+                        if x + 1 <= 7:
+                            hold = board[x+1][y]
+                        if x + 1 <= 7 and (board[x+1][y] == "              " or board[x+1][y].owner != player) and piece.move(x, y, x + 1, y, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[y] + str(key2[x + 1]))
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        if x + 2 <= 7 and piece.move(x, y, x + 2, y) == "Success":
+                            board[x][y] = piece
+                            board[x+1][y] = hold
+                            piece.hasMoved = save_moved
+                        if x + 2 <= 7:
+                            hold = board[x+2][y]
+                        if x + 2 <= 7 and (board[x+2][y] == "              " or board[x+2][y].owner != player) and piece.move(x, y, x + 2, y, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[y] + str(key2[x + 2]))
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        if x + 1 <= 7 and y - 1 >= 0 and piece.move(x, y, x + 1, y - 1) == "Success":
+                            board[x][y] = piece
+                            board[x+2][y] = hold
+                            piece.hasMoved = save_moved
+                        if x + 1 <= 7  and  y - 1 >= 0:
+                            hold = board[x+1][y-1]
+                        if x + 1 <= 7  and  y - 1 >= 0 and (board[x+1][y-1] == "              " or board[x+1][y-1].owner != player) and piece.move(x, y, x + 1, y - 1, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[y - 1] + str(key2[x + 1]))
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        if x + 1 <= 7 and y + 1 <= 7 and piece.move(x, y, x + 1, y + 1) == "Success":
+                            board[x][y] = piece
+                            board[x+1][y-1] = hold
+                            piece.hasMoved = save_moved
+                        if x + 1 <= 7  and  y + 1 <= 7:
+                            hold = board[x+1][y+1]
+                        if x + 1 <= 7  and  y + 1 <= 7 and (board[x+1][y+1] == "              " or board[x+1][y+1].owner != player) and piece.move(x, y, x + 1, y + 1, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[y + 1] + str(key2[x + 1]))
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
+                            board[x][y] = piece
+                            board[x+1][y+1] = hold
+                            piece.hasMoved = save_moved
 
                 elif isinstance(piece, Rook):
+                    save_moved = piece.hasMoved
                     vert = x + 1
                     hor = y - 1
                     while vert < 8:
-                        if piece.move(x, y, vert, y) == "Success":
+                        hold = board[vert][y]
+                        if (board[vert][y] == "              " or board[vert][y].owner != player) and piece.move(x, y, vert, y, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[y] + str(key2[vert]))
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
+                            board[x][y] = piece
+                            board[vert][y] = hold
+                            piece.hasMoved = save_moved
                         else:
                             break
                         vert = vert + 1
                     vert = x - 1
                     while vert >= 0:
-                        if piece.move(x, y, vert, y) == "Success":
+                        hold = board[vert][y]
+                        if (board[vert][y] == "              " or board[vert][y].owner != player) and piece.move(x, y, vert, y, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[y] + str(key2[vert]))
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
+                            board[x][y] = piece
+                            board[vert][y] = hold
+                            piece.hasMoved = save_moved
                         else:
                             break
                         vert = vert - 1
                     while hor >= 0:
-                        if piece.move(x, y, x, hor) == "Success":
+                        hold = board[x][hor]
+                        if (board[x][hor] == "              " or board[x][hor].owner != player) and piece.move(x, y, x, hor, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[hor] + str(key2[x]))
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
+                            board[x][y] = piece
+                            board[x][hor] = hold
+                            piece.hasMoved = save_moved
                         else:
                             break
                         hor = hor - 1
                     hor = y + 1
                     while hor < 8:
-                        if piece.move(x, y, x, hor) == "Success":
+                        hold = board[x][hor]
+                        if (board[x][hor] == "              " or board[x][hor].owner != player) and piece.move(x, y, x, hor, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[hor] + str(key2[x]))
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
+                            board[x][y] = piece
+                            board[x][hor] = hold
+                            piece.hasMoved = save_moved
                         else:
                             break
                         hor = hor + 1
                     
                 elif isinstance(piece, Knight):
-                    if x + 2 < 8 and y + 1 < 8 and piece.move(x, y, x + 2, y + 1) == "Success":
+                    if x + 2 < 8 and y + 1 < 8:
+                        hold = board[x+2][y+1]
+                    if x + 2 < 8 and y + 1 < 8 and (board[x+2][y+1] == "              " or board[x+2][y+1].owner != player) and piece.move(x, y, x + 2, y + 1, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y + 1] + str(key2[x + 2]))
-                        board = copy.deepcopy(testBoard)
-                    if x + 2 < 8 and y - 1 >= 0 and piece.move(x, y, x + 2, y - 1) == "Success":
+                        board[x][y] = piece
+                        board[x+2][y+1] = hold
+                    if x + 2 < 8 and y - 1 >= 0:
+                        hold = board[x+2][y-1]
+                    if x + 2 < 8 and y - 1 >= 0 and (board[x+2][y-1] == "              " or board[x+2][y-1].owner != player) and piece.move(x, y, x + 2, y - 1, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y - 1] + str(key2[x + 2]))
-                        board = copy.deepcopy(testBoard)
-                    if x - 2 >= 0 and y + 1 < 8 and piece.move(x, y, x - 2, y + 1) == "Success":
+                        board[x][y] = piece
+                        board[x+2][y-1] = hold
+                    if x - 2 >= 0 and y + 1 < 8:
+                        hold = board[x-2][y+1]
+                    if x - 2 >= 0 and y + 1 < 8 and (board[x-2][y+1] == "              " or board[x-2][y+1].owner != player) and piece.move(x, y, x - 2, y + 1, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y + 1] + str(key2[x - 2]))
-                        board = copy.deepcopy(testBoard)
-                    if x - 2 >= 0 and y - 1 >= 0 and piece.move(x, y, x - 2, y - 1) == "Success":
+                        board[x][y] = piece
+                        board[x-2][y+1] = hold
+                    if x - 2 >= 0 and y - 1 >= 0:
+                        hold = board[x-2][y-1]
+                    if x - 2 >= 0 and y - 1 >= 0 and (board[x-2][y-1] == "              " or board[x-2][y-1].owner != player) and piece.move(x, y, x - 2, y - 1, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y - 1] + str(key2[x - 2]))
-                        board = copy.deepcopy(testBoard)
-                    if y + 2 < 8 and x + 1 < 8 and piece.move(x, y, x + 1, y + 2) == "Success":
+                        board[x][y] = piece
+                        board[x-2][y-1] = hold
+                    if y + 2 < 8 and x + 1 < 8:
+                        hold = board[x+1][y+2]
+                    if y + 2 < 8 and x + 1 < 8 and (board[x+1][y+2] == "              " or board[x+1][y+2].owner != player) and piece.move(x, y, x + 1, y + 2, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y + 2] + str(key2[x + 1]))
-                        board = copy.deepcopy(testBoard)
-                    if y + 2 < 8 and x - 1 >= 0 and piece.move(x, y, x - 1, y + 2) == "Success":
+                        board[x][y] = piece
+                        board[x+1][y+2] = hold
+                    if y + 2 < 8 and x - 1 >= 0:
+                        hold = board[x-1][y+2]
+                    if y + 2 < 8 and x - 1 >= 0 and (board[x-1][y+2] == "              " or board[x-1][y+2].owner != player) and piece.move(x, y, x - 1, y + 2, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y + 2] + str(key2[x - 1]))
-                        board = copy.deepcopy(testBoard)
-                    if y - 2 >= 0 and x + 1 < 8 and piece.move(x, y, x + 1, y - 2) == "Success":
+                        board[x][y] = piece
+                        board[x-1][y+2] = hold
+                    if y - 2 >= 0 and x + 1 < 8:
+                        hold = board[x+1][y-2]
+                    if y - 2 >= 0 and x + 1 < 8 and (board[x+1][y-2] == "              " or board[x+1][y-2].owner != player ) and piece.move(x, y, x + 1, y - 2, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y - 2] + str(key2[x + 1]))
-                        board = copy.deepcopy(testBoard)
-                    if y - 2 >= 0 and x - 1 >= 0 and piece.move(x, y, x - 1, y - 2) == "Success":
+                        board[x][y] = piece
+                        board[x+1][y-2] = hold
+                    if y - 2 >= 0 and x - 1 >= 0:
+                        hold = board[x-1][y-2]
+                    if y - 2 >= 0 and x - 1 >= 0 and (board[x-1][y-2] == "              " or board[x-1][y-2].owner != player) and piece.move(x, y, x - 1, y - 2, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y - 2] + str(key2[x - 1]))
-                        board = copy.deepcopy(testBoard)
+                        board[x][y] = piece
+                        board[x-1][y-2] = hold
 
                 elif isinstance(piece, Bishop):
                     vert = x - 1
                     hor = y - 1
                     # top left diag
                     while vert >= 0 and hor >= 0:
-                        if piece.move(x, y, vert, hor) == "Success":
+                        hold = board[vert][hor]
+                        if (board[vert][hor] == "              " or board[vert][hor].owner != player) and piece.move(x, y, vert, hor, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[hor] + str(key2[vert]))
-                            board = copy.deepcopy(testBoard)
+                            board[x][y] = piece
+                            board[vert][hor] = hold
                         else:
                             break
                         vert = vert - 1
@@ -728,9 +860,11 @@ def generateMoves(player):
                     hor = y + 1
                     # top right diag
                     while vert >= 0 and hor < 8:
-                        if piece.move(x, y, vert, hor) == "Success":
+                        hold = board[vert][hor]
+                        if (board[vert][hor] == "              " or board[vert][hor].owner != player) and piece.move(x, y, vert, hor, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[hor] + str(key2[vert]))
-                            board = copy.deepcopy(testBoard)
+                            board[x][y] = piece
+                            board[vert][hor] = hold
                         else:
                             break
                         vert = vert - 1
@@ -739,9 +873,11 @@ def generateMoves(player):
                     hor = y - 1
                     # bottom left diag
                     while vert < 8 and hor >= 0:
-                        if piece.move(x, y, vert, hor) == "Success":
+                        hold = board[vert][hor]
+                        if (board[vert][hor] == "              " or board[vert][hor].owner != player) and piece.move(x, y, vert, hor, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[hor] + str(key2[vert]))
-                            board = copy.deepcopy(testBoard)
+                            board[x][y] = piece
+                            board[vert][hor] = hold
                         else:
                             break
                         vert = vert + 1
@@ -750,9 +886,11 @@ def generateMoves(player):
                     hor = y + 1
                     # bottom right diag
                     while vert < 8 and hor < 8:
-                        if piece.move(x, y, vert, hor) == "Success":
+                        hold = board[vert][hor]
+                        if (board[vert][hor] == "              " or board[vert][hor].owner != player) and piece.move(x, y, vert, hor, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[hor] + str(key2[vert]))
-                            board = copy.deepcopy(testBoard)
+                            board[x][y] = piece
+                            board[vert][hor] = hold
                         else:
                             break
                         vert = vert + 1
@@ -763,9 +901,11 @@ def generateMoves(player):
                     hor = y - 1
                     # top left diag
                     while vert >= 0 and hor >= 0:
-                        if piece.move(x, y, vert, hor) == "Success":
+                        hold = board[vert][hor]
+                        if piece.move(x, y, vert, hor, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[hor] + str(key2[vert]))
-                            board = copy.deepcopy(testBoard)
+                            board[x][y] = piece
+                            board[vert][hor] = hold
                         else:
                             break
                         vert = vert - 1
@@ -774,9 +914,11 @@ def generateMoves(player):
                     hor = y + 1
                     # top right diag
                     while vert >= 0 and hor < 8:
-                        if piece.move(x, y, vert, hor) == "Success":
+                        hold = board[vert][hor]
+                        if piece.move(x, y, vert, hor, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[hor] + str(key2[vert]))
-                            board = copy.deepcopy(testBoard)
+                            board[x][y] = piece
+                            board[vert][hor] = hold
                         else:
                             break
                         vert = vert - 1
@@ -785,9 +927,11 @@ def generateMoves(player):
                     hor = y - 1
                     # bottom left diag
                     while vert < 8 and hor >= 0:
-                        if piece.move(x, y, vert, hor) == "Success":
+                        hold = board[vert][hor]
+                        if piece.move(x, y, vert, hor, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[hor] + str(key2[vert]))
-                            board = copy.deepcopy(testBoard)
+                            board[x][y] = piece
+                            board[vert][hor] = hold
                         else:
                             break
                         vert = vert + 1
@@ -796,9 +940,11 @@ def generateMoves(player):
                     hor = y + 1
                     # bottom right diag
                     while vert < 8 and hor < 8:
-                        if piece.move(x, y, vert, hor) == "Success":
+                        hold = board[vert][hor]
+                        if piece.move(x, y, vert, hor, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[hor] + str(key2[vert]))
-                            board = copy.deepcopy(testBoard)
+                            board[x][y] = piece
+                            board[vert][hor] = hold
                         else:
                             break
                         vert = vert + 1
@@ -806,134 +952,236 @@ def generateMoves(player):
                     vert = x + 1
                     hor = y - 1
                     while vert < 8:
-                        if piece.move(x, y, vert, y) == "Success":
+                        hold = board[vert][y]
+                        if piece.move(x, y, vert, y, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[y] + str(key2[vert]))
-                            board = copy.deepcopy(testBoard)
+                            board[x][y] = piece
+                            board[vert][y] = hold
                         else:
                             break
                         vert = vert + 1
                     vert = x - 1
                     while vert >= 0:
-                        if piece.move(x, y, vert, y) == "Success":
+                        hold = board[vert][y]
+                        if piece.move(x, y, vert, y, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[y] + str(key2[vert]))
-                            board = copy.deepcopy(testBoard)
+                            board[x][y] = piece
+                            board[vert][y] = hold
                         else:
                             break
                         vert = vert - 1
                     while hor >= 0:
-                        if piece.move(x, y, x, hor) == "Success":
+                        hold = board[x][hor]
+                        if piece.move(x, y, x, hor, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[hor] + str(key2[x]))
-                            board = copy.deepcopy(testBoard)
+                            board[x][y] = piece
+                            board[x][hor] = hold
                         else:
                             break
                         hor = hor - 1
                     hor = y + 1
                     while hor < 8:
-                        if piece.move(x, y, x, hor) == "Success":
+                        hold = board[x][hor]
+                        if piece.move(x, y, x, hor, 0) == "Success":
                             moves.append(key[y] + str(key2[x]) + " to " + key[hor] + str(key2[x]))
-                            board = copy.deepcopy(testBoard)
+                            board[x][y] = piece
+                            board[x][hor] = hold
                         else:
                             break
                         hor = hor + 1
                 else:
                     global whiteKingPos
                     global blackKingPos
-                    holder = copy.deepcopy(whiteKingPos)
-                    holder2 = copy.deepcopy(blackKingPos)
-                    if y - 2 >= 0 and piece.move(x, y, x, y - 2) == "Success":
+                    if player == "White":
+                        index = whiteKingPos
+                    else:
+                        index = blackKingPos
+                    holder = index[0]
+                    holder2 = index[1]
+                    flag_moved = piece.hasMoved
+                    flag_checked = piece.hasBeenChecked
+                    rookflag = None
+                    if y - 2 >= 0:
+                        hold = board[x][0]
+                        if isinstance(hold, Rook):
+                            rookflag = hold.hasMoved
+                    if y - 2 >= 0 and piece.move(x, y, x, y - 2, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y - 2] + str(key2[x]))
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y + 2 < 8 and piece.move(x, y, x, y + 2) == "Success":
+                        board[x][y] = piece
+                        board[x][0] = hold
+                        board[x][1] = "              "
+                        board[x][2] = "              "
+                        board[x][3] = "              "
+                        hold.hasMoved = rookflag
+                        piece.hasMoved = flag_moved
+                        piece.hasBeenChecked = flag_checked
+                        index[0] = holder
+                        index[1] = holder2
+                    if y + 2 < 8:
+                        hold = board[x][7]
+                        if isinstance(hold, Rook):
+                            rookflag = hold.hasMoved
+                    if y + 2 < 8 and piece.move(x, y, x, y + 2, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y + 2] + str(key2[x]))
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y + 1 < 8 and x + 1 < 8 and piece.move(x, y, x + 1, y + 1) == "Success":
+                        board[x][y] = piece
+                        board[x][7] = hold
+                        board[x][6] = "              "
+                        board[x][5] = "              "
+                        hold.hasMoved = rookflag
+                        piece.hasMoved = flag_moved
+                        piece.hasBeenChecked = flag_checked
+                        index[0] = holder
+                        index[1] = holder2
+                    if y + 1 < 8 and x + 1 < 8:
+                        hold = board[x+1][y+1]
+                    if y + 1 < 8 and x + 1 < 8 and piece.move(x, y, x + 1, y + 1, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y + 1] + str(key2[x + 1]))
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y - 1 >= 0 and x - 1 >= 0 and piece.move(x, y, x - 1, y - 1) == "Success":
+                        board[x][y] = piece
+                        board[x+1][y+1] = hold
+                        piece.hasMoved = flag_moved
+                        piece.hasBeenChecked = flag_checked
+                        index[0] = holder
+                        index[1] = holder2
+                    if y - 1 >= 0 and x - 1 >= 0:
+                        hold = board[x-1][y-1]
+                    if y - 1 >= 0 and x - 1 >= 0 and piece.move(x, y, x - 1, y - 1, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y - 1] + str(key2[x - 1]))
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y + 1 < 8 and x - 1 >= 0 and piece.move(x, y, x - 1, y + 1) == "Success":
+                        board[x][y] = piece
+                        board[x-1][y-1] = hold
+                        piece.hasMoved = flag_moved
+                        piece.hasBeenChecked = flag_checked
+                        index[0] = holder
+                        index[1] = holder2
+                    if y + 1 < 8 and x - 1 >= 0:
+                        hold = board[x-1][y+1]
+                    if y + 1 < 8 and x - 1 >= 0 and piece.move(x, y, x - 1, y + 1, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y + 1] + str(key2[x - 1]))
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y - 1 >= 0 and x + 1 < 8 and piece.move(x, y, x + 1, y - 1) == "Success":
+                        board[x][y] = piece
+                        board[x-1][y+1] = hold
+                        piece.hasMoved = flag_moved
+                        piece.hasBeenChecked = flag_checked
+                        index[0] = holder
+                        index[1] = holder2
+                    if y - 1 >= 0 and x + 1 < 8:
+                        hold = board[x+1][y-1]
+                    if y - 1 >= 0 and x + 1 < 8 and piece.move(x, y, x + 1, y - 1, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y - 1] + str(key2[x + 1]))
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y + 1 < 8 and piece.move(x, y, x, y + 1) == "Success":
+                        board[x][y] = piece
+                        board[x+1][y-1] = hold
+                        piece.hasMoved = flag_moved
+                        piece.hasBeenChecked = flag_checked
+                        index[0] = holder
+                        index[1] = holder2
+                    if y + 1 < 8:
+                        hold = board[x][y+1]
+                    if y + 1 < 8 and piece.move(x, y, x, y + 1, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y + 1] + str(key2[x]))
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y - 1 >= 0 and piece.move(x, y, x, y - 1) == "Success":
+                        board[x][y] = piece
+                        board[x][y+1] = hold
+                        piece.hasMoved = flag_moved
+                        piece.hasBeenChecked = flag_checked
+                        index[0] = holder
+                        index[1] = holder2
+                    if y - 1 >= 0:
+                        hold = board[x][y-1]
+                    if y - 1 >= 0 and piece.move(x, y, x, y - 1, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y - 1] + str(key2[x]))
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if x + 1 < 8 and piece.move(x, y, x + 1, y) == "Success":
+                        board[x][y] = piece
+                        board[x][y-1] = hold
+                        piece.hasMoved = flag_moved
+                        piece.hasBeenChecked = flag_checked
+                        index[0] = holder
+                        index[1] = holder2
+                    if x + 1 < 8:
+                        hold = board[x+1][y]
+                    if x + 1 < 8 and piece.move(x, y, x + 1, y, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y] + str(key2[x + 1]))
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if x - 1 >= 0 and piece.move(x, y, x - 1, y) == "Success":
+                        board[x][y] = piece
+                        board[x+1][y] = hold
+                        piece.hasMoved = flag_moved
+                        piece.hasBeenChecked = flag_checked
+                        index[0] = holder
+                        index[1] = holder2
+                    if x - 1 >= 0:
+                        hold = board[x-1][y]
+                    if x - 1 >= 0 and piece.move(x, y, x - 1, y, 0) == "Success":
                         moves.append(key[y] + str(key2[x]) + " to " + key[y] + str(key2[x - 1]))
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
+                        board[x][y] = piece
+                        board[x-1][y] = hold
+                        piece.hasMoved = flag_moved
+                        piece.hasBeenChecked = flag_checked
+                        index[0] = holder
+                        index[1] = holder2
+                    if player == "White":
+                        whiteKingPos = index
+                    else:
+                        blackKingPos = index
             y = y + 1
         x = x + 1
+    #print(player)
+    #print(str(whiteKingPos) + " " + str(blackKingPos))
     return moves
 
 def eval():
     global turn_counter
     global board
     score = 0
-    piece_value = {" Pawn ": 1, " Knight ": 3, " Bishop ": 3," Rook ": 5," Queen ": 9}
+    piece_value = {" Pawn " : 1, " Knight " : 3, " Bishop " : 3, " Rook " : 5, " Queen " : 9}
+    legal_moves1 = len(generateMoves("Black"))
+    score -= 0.05 * legal_moves1
+    # Check the number of legal moves for white pieces
+    legal_moves = len(generateMoves("White"))
+    score += 0.05 * legal_moves 
     for row in range(8):
         for col in range(8):
             piece = board[row][col]
             if piece == "              ":
                 continue
-            if piece.owner == "White":
-                score += piece_value.get(piece.ezString(), 0)
-            else:
-                score -= piece_value.get(piece.ezString(), 0)
-            
             if piece.owner == "White":  # White piece
+                if isinstance(piece, King):  # White king
+                # Evaluate castling rights
+                    if row == 7 and (col == 2 or col == 6):
+                        score += 0.3  # Favor castling rights
+                    open_files = sum(1 for i in range(8) if board[i][col] == ' ') # Assess the number of open files around the king
+                    score -= 0.05 * open_files  # Penalize for open files
+                if isinstance(piece, Rook):  # White pawn
+                    if all(board[i][col] == ' ' for i in range(8)):
+                        score += 0.8  # Favor rooks on open files
+                if col == 0 or col == 7 or row == 0 or row == 7:
+                    score -= 0.1
+                score += piece_value.get(piece.ezString(), 0)
                 if isinstance(piece, Pawn):
-                    # Favor pawns controlling central squares
-                    if 3 <= col <= 4 and 3 <= row <= 4:
+                    if (col == 0 or not isinstance(board[row][col - 1], Pawn)) and (col == 7 or not isinstance(board[row][col + 1], Pawn)):
+                        score -= 0.2  # Penalize isolated pawns
+                    if all(board[i][col] == ' ' for i in range(8)): # Check for passed pawns
+                        score += 0.4
+                    if 3 <= col <= 4 and 3 <= row <= 4: # Favor pawns controlling central squares
                         score += 0.3
-                else:
-                    # Favor central control by other pieces
-                    if 3 <= col <= 4 and 3 <= row <= 4:
+                else:  
+                    if 3 <= col <= 4 and 3 <= row <= 4: # Favor central control by other pieces
                         score += 0.5
                 if isinstance(piece, Queen) and turn_counter < 10 and (col != 3 and row != 7) :
                     score -= .5
                 if isinstance(piece, Knight) and turn_counter < 10 and ((col != 1 and row != 7) or (col != 6 and row != 7)) :
                     score += .3
             else:  # Black piece
+                if isinstance(piece, King):  # Black king
+                    if row == 0 and (col == 2 or col == 6):
+                        score -= 0.3  # Favor castling rights
+                    open_files = sum(1 for i in range(8) if board[i][col] == ' ')
+                    score += 0.05 * open_files  # Penalize for open files
+                if isinstance(piece, Rook):  # Black pawn
+                    if all(board[i][col] == ' ' for i in range(8)):
+                        score -= 0.8  # Favor rooks on open files
+                if col == 0 or col == 7 or row == 0 or row == 7:
+                    score += 0.1
+                score -= piece_value.get(piece.ezString(), 0)
                 if isinstance(piece, Pawn):
+                    if (col == 0 or not isinstance(board[row][col - 1], Pawn)) and (col == 7 or not isinstance(board[row][col + 1], Pawn)):
+                        score += 0.2  # Penalize isolated pawns
+                # Check for passed pawns
+                    if all(board[i][col] == ' ' for i in range(8)):
+                        score -= 0.4  # Favor passed pawns
                     if 3 <= col <= 4 and 3 <= row <= 4:
                         score -= 0.3
                 else:
@@ -943,399 +1191,203 @@ def eval():
                     score += .5
                 if isinstance(piece, Knight) and turn_counter < 10 and ((col != 1 and row != 0) or (col != 6 and row != 0)) :
                     score -= .3
-            if piece.owner == "White":
-                if col == 0 or col == 7 or row == 0 or row == 7:
-                    score -= 0.1
-            else:
-                if col == 0 or col == 7 or row == 0 or row == 7:
-                    score += 0.1
-            if isinstance(piece, Pawn) and piece.owner == "White":  # White pawn CHANGE TO ACCOUNT FOR DIAGONAL NOT NEXT TO
-                # Check for isolated pawns
-                if (col == 0 or not isinstance(board[row][col - 1], Pawn)) and (col == 7 or not isinstance(board[row][col + 1], Pawn)):
-                    score -= 0.2  # Penalize isolated pawns
-
-                # Check for passed pawns
-                if all(board[i][col] == ' ' for i in range(8)):
-                    score += 0.4  # Favor passed pawns
-
-            elif isinstance(piece, Pawn) and piece.owner == "Black":  # Black pawn
-                # Check for isolated pawns
-                if (col == 0 or not isinstance(board[row][col - 1], Pawn)) and (col == 7 or not isinstance(board[row][col + 1], Pawn)):
-                    score += 0.2  # Penalize isolated pawns
-
-                # Check for passed pawns
-                if all(board[i][col] == ' ' for i in range(8)):
-                    score -= 0.4  # Favor passed pawns
-            if isinstance(piece, Rook) and piece.owner == "White":  # White pawn
-                if all(board[i][col] == ' ' for i in range(8)):
-                    score += 0.8  # Favor rooks on open files
-            elif isinstance(piece, Rook) and piece.owner == "Black":  # Black pawn
-                if all(board[i][col] == ' ' for i in range(8)):
-                    score -= 0.8  # Favor rooks on open files
-            if isinstance(piece, King) and piece.owner == "White":  # White king
-                # Evaluate castling rights
-                if row == 7 and (col == 2 or col == 6):
-                    score += 0.3  # Favor castling rights
-
-                # Assess the number of open files around the king
-                open_files = sum(1 for i in range(8) if board[i][col] == ' ')
-                score -= 0.05 * open_files  # Penalize for open files
-            elif isinstance(piece, King) and piece.owner == "Black":  # Black king
-                if row == 0 and (col == 2 or col == 6):
-                    score -= 0.3  # Favor castling rights
-                open_files = sum(1 for i in range(8) if board[i][col] == ' ')
-                score += 0.05 * open_files  # Penalize for open files
-            if piece.owner == "White":  # White piece
-                # Check the number of legal moves for white pieces
-                legal_moves = count_legal_moves(row, col, piece)
-                score += 0.05 * legal_moves  # Favor more legal moves for white
-            else:  # Black piece
-                # Check the number of legal moves for black pieces
-                legal_moves1 = count_legal_moves(row, col, piece)
-                score -= 0.05 * legal_moves1  # Favor more legal moves for black
-    return f"{score:.2f}"
-
-def count_legal_moves(row, col, piece):
-                global whiteKingPos
-                global blackKingPos
-                legal_moves = 0
-                player = piece.owner
-                x = row
-                y = col
-                global board
-                testBoard = copy.deepcopy(board)
-                if isinstance(piece, Pawn):
-                    if player == "White":
-                        if x - 1 >= 0 and piece.move(x, y, x - 1, y) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        if x - 2 >= 0 and piece.move(x, y, x - 2, y) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        if x - 1 >= 0 and y - 1 >= 0 and piece.move(x, y, x - 1, y - 1) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        if x - 1 >= 0 and y + 1 <= 7 and piece.move(x, y, x - 1, y + 1) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                    else:
-                        if x + 1 <= 7 and piece.move(x, y, x + 1, y) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        if x + 2 <= 7 and piece.move(x, y, x + 2, y) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        if x + 1 <= 7 and y - 1 >= 0 and piece.move(x, y, x + 1, y - 1) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        if x + 1 <= 7 and y + 1 <= 7 and piece.move(x, y, x + 1, y + 1) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-
-                elif isinstance(piece, Rook):
-                    vert = x + 1
-                    hor = y - 1
-                    while vert < 8:
-                        if piece.move(x, y, vert, y) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        else:
-                            break
-                        vert = vert + 1
-                    vert = x - 1
-                    while vert >= 0:
-                        if piece.move(x, y, vert, y) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        else:
-                            break
-                        vert = vert - 1
-                    while hor >= 0:
-                        if piece.move(x, y, x, hor) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        else:
-                            break
-                        hor = hor - 1
-                    hor = y + 1
-                    while hor < 8:
-                        if piece.move(x, y, x, hor) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                            piece = board[x][y]
-                        else:
-                            break
-                        hor = hor + 1
-                    
-                elif isinstance(piece, Knight):
-                    if x + 2 < 8 and y + 1 < 8 and piece.move(x, y, x + 2, y + 1) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                    if x + 2 < 8 and y - 1 >= 0 and piece.move(x, y, x + 2, y - 1) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                    if x - 2 >= 0 and y + 1 < 8 and piece.move(x, y, x - 2, y + 1) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                    if x - 2 >= 0 and y - 1 >= 0 and piece.move(x, y, x - 2, y - 1) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                    if y + 2 < 8 and x + 1 < 8 and piece.move(x, y, x + 1, y + 2) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                    if y + 2 < 8 and x - 1 >= 0 and piece.move(x, y, x - 1, y + 2) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                    if y - 2 >= 0 and x + 1 < 8 and piece.move(x, y, x + 1, y - 2) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                    if y - 2 >= 0 and x - 1 >= 0 and piece.move(x, y, x - 1, y - 2) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-
-                elif isinstance(piece, Bishop):
-                    vert = x - 1
-                    hor = y - 1
-                    # top left diag
-                    while vert >= 0 and hor >= 0:
-                        if piece.move(x, y, vert, hor) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                        else:
-                            break
-                        vert = vert - 1
-                        hor = hor - 1
-                    vert = x - 1
-                    hor = y + 1
-                    # top right diag
-                    while vert >= 0 and hor < 8:
-                        if piece.move(x, y, vert, hor) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                        else:
-                            break
-                        vert = vert - 1
-                        hor = hor + 1
-                    vert = x + 1
-                    hor = y - 1
-                    # bottom left diag
-                    while vert < 8 and hor >= 0:
-                        if piece.move(x, y, vert, hor) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                        else:
-                            break
-                        vert = vert + 1
-                        hor = hor - 1
-                    vert = x + 1
-                    hor = y + 1
-                    # bottom right diag
-                    while vert < 8 and hor < 8:
-                        if piece.move(x, y, vert, hor) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                        else:
-                            break
-                        vert = vert + 1
-                        hor = hor + 1
-                      
-                elif isinstance(piece, Queen):
-                    vert = x - 1
-                    hor = y - 1
-                    # top left diag
-                    while vert >= 0 and hor >= 0:
-                        if piece.move(x, y, vert, hor) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                        else:
-                            break
-                        vert = vert - 1
-                        hor = hor - 1
-                    vert = x - 1
-                    hor = y + 1
-                    # top right diag
-                    while vert >= 0 and hor < 8:
-                        if piece.move(x, y, vert, hor) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                        else:
-                            break
-                        vert = vert - 1
-                        hor = hor + 1
-                    vert = x + 1
-                    hor = y - 1
-                    # bottom left diag
-                    while vert < 8 and hor >= 0:
-                        if piece.move(x, y, vert, hor) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                        else:
-                            break
-                        vert = vert + 1
-                        hor = hor - 1
-                    vert = x + 1
-                    hor = y + 1
-                    # bottom right diag
-                    while vert < 8 and hor < 8:
-                        if piece.move(x, y, vert, hor) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                        else:
-                            break
-                        vert = vert + 1
-                        hor = hor + 1
-                    vert = x + 1
-                    hor = y - 1
-                    while vert < 8:
-                        if piece.move(x, y, vert, y) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                        else:
-                            break
-                        vert = vert + 1
-                    vert = x - 1
-                    while vert >= 0:
-                        if piece.move(x, y, vert, y) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                        else:
-                            break
-                        vert = vert - 1
-                    while hor >= 0:
-                        if piece.move(x, y, x, hor) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                        else:
-                            break
-                        hor = hor - 1
-                    hor = y + 1
-                    while hor < 8:
-                        if piece.move(x, y, x, hor) == "Success":
-                            legal_moves += 1
-                            board = copy.deepcopy(testBoard)
-                        else:
-                            break
-                        hor = hor + 1
-                else:
-                    holder = copy.deepcopy(whiteKingPos)
-                    holder2 = copy.deepcopy(blackKingPos)
-                    if y - 2 >= 0 and piece.move(x, y, x, y - 2) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y + 2 < 8 and piece.move(x, y, x, y + 2) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y + 1 < 8 and x + 1 < 8 and piece.move(x, y, x + 1, y + 1) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y - 1 >= 0 and x - 1 >= 0 and piece.move(x, y, x - 1, y - 1) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y + 1 < 8 and x - 1 >= 0 and piece.move(x, y, x - 1, y + 1) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y - 1 >= 0 and x + 1 < 8 and piece.move(x, y, x + 1, y - 1) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y + 1 < 8 and piece.move(x, y, x, y + 1) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if y - 1 >= 0 and piece.move(x, y, x, y - 1) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if x + 1 < 8 and piece.move(x, y, x + 1, y) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                    if x - 1 >= 0 and piece.move(x, y, x - 1, y) == "Success":
-                        legal_moves += 1
-                        board = copy.deepcopy(testBoard)
-                        piece = board[x][y]
-                        whiteKingPos = copy.deepcopy(holder)
-                        blackKingPos = copy.deepcopy(holder2)
-                return legal_moves
+    return score
 
 def pick_move():
     global board
     max_eval = 1000
-    local_max = 0
+    local_max = -1000
     max_eval4 = None
     move_picked = ""
-    cp = copy.deepcopy(board)
-    print(board[4][1])
-    moves = generateMoves("White")
-    print(moves)
+    first_b = ""
+    second_b = ""
+    third_b = ""
     global whiteKingPos
     global blackKingPos
-    print(whiteKingPos)
-    print(blackKingPos)
-    holder = copy.deepcopy(whiteKingPos)
-    for move3 in moves:
-        cp2 = copy.deepcopy(board)
-        error = move(move3, "White")
-        local_max = float(eval())
+    moves = generateMoves("White")
+    took1 = None
+    took2 = None
+    took3 = None 
+    took4 = None
+    took5 = None
+    took6 = None
+    took7 = None
+    took8 = None
+    took9 = None
+    global tookpiece
+    holder = whiteKingPos[0]
+    holder2 = whiteKingPos[1]
+    for move1 in moves:
+        error = move(move1, "White", 0)
+        took1 = detTP()
+        
         moves2 = generateMoves("Black")
-        holder2 = copy.deepcopy(blackKingPos)
+        holder3 = blackKingPos[0]
+        holder4 = blackKingPos[1]
         for move2 in moves2:
-                cp4 = copy.deepcopy(board)
-                error2 = move(move2, "Black")
-                if float(eval()) < max_eval:
-                    max_eval = float(eval())
-                    # first_b = move2
-                board = copy.deepcopy(cp4)
-                blackKingPos = copy.deepcopy(holder2)
-        board = copy.deepcopy(cp2)
-        whiteKingPos = copy.deepcopy(holder)
+                error2 = move(move2, "Black", 0)
+                took9 = detTP()
+                e = eval()
+                if e < max_eval:
+                    max_eval = e
+                    first_b = move2
+                tookpiece = detTP2(took9)
+                undo(move2)
+                blackKingPos[0] = holder3
+                blackKingPos[1] = holder4
+        error3 = move(first_b, "Black", 0)
+        took4 = detTP()
+        holder5 = whiteKingPos[0]
+        holder6 = whiteKingPos[1]
+        moves3 = generateMoves("White")
+        for move3 in moves3:
+            error4 = move(move3, "White", 0)
+            took2 = detTP()
+            moves4 = generateMoves("Black")
+            holder7 = blackKingPos[0]
+            holder8 = blackKingPos[1]
+            max_eval = 1000
+            for move4 in moves4:
+                error5 = move(move4, "Black", 0) # move the eval functions to reduce overhead outside of loop
+                took7 = detTP()
+                e = eval()
+                if e < max_eval:
+                    max_eval = e
+                    second_b = move4
+                tookpiece = detTP2(took7)
+                undo(move4)
+                blackKingPos[0] = holder7
+                blackKingPos[1] = holder8
+            error6 = move(second_b, "Black", 0)
+            took5 = detTP()
+            holder9 = whiteKingPos[0]
+            holder10 = whiteKingPos[1]
+            moves5 = generateMoves("White")
+            for move5 in moves5:
+                error7 = move(move5, "White", 0)
+                took3 = detTP()
+                moves6 = generateMoves("Black")
+                holder11 = blackKingPos[0]
+                holder12 = blackKingPos[1]
+                max_eval = 1000
+                for move6 in moves6:
+                    error8 = move(move6, "Black", 0)
+                    took8 = detTP()
+                    e = eval()
+                    if e < max_eval:
+                        max_eval = e
+                        third_b = move6
+                    tookpiece = detTP2(took8)
+                    undo(move6)
+                    blackKingPos[0] = holder11
+                    blackKingPos[1] = holder12
+                error9 = move(third_b, "Black", 0)
+                took6 = detTP()
+                e = eval()
+                if e > local_max:
+                    local_max = e
+                    move_picked = move1
+                tookpiece = detTP2(took6)
+                undo(third_b)
+                whiteKingPos[0] = holder9
+                whiteKingPos[1] = holder10
+                tookpiece = detTP2(took3)
+                undo(move5)
+            tookpiece = detTP2(took5)
+            undo(second_b)
+            tookpiece = detTP2(took2)
+            undo(move3)
+            whiteKingPos[0] = holder5
+            whiteKingPos[1] = holder6
+        tookpiece = detTP2(took4)
+        undo(first_b)
+        tookpiece = detTP2(took1)
+        undo(move1)
 
-        if max_eval4 == None:
-                max_eval4 = max_eval + local_max
-                move_picked = move3
-        elif max_eval + local_max > max_eval4:
-                max_eval4 = max_eval + local_max
-                move_picked = move3
-    board = copy.deepcopy(cp)
-    print(whiteKingPos)
-    print(blackKingPos)
+        whiteKingPos[0] = holder
+        whiteKingPos[1] = holder2
     return move_picked
 
-def move(play, player):
+def detTP():
+    global tookpiece
+    if tookpiece == "              ":
+        return "              "
+    else:
+        return copy.deepcopy(tookpiece)
+    
+def detTP2(e):
+    if e == "              ":
+        return "              "
+    else:
+        return copy.deepcopy(e)
+
+def undo(play):
+    global board
+    global tookpiece
+    key = {'a': 0, 'b': 1, 'c': 2, 'd': 3, 'e': 4, 'f':5, 'g': 6, 'h': 7}
+    key2 = {1 : 7, 2 : 6, 3 : 5, 4 : 4, 5 : 3, 6 : 2, 7 : 1, 8 : 0}
+    initialCol = play[0]
+    if initialCol in key:
+        initialCol = key[initialCol]
+    else:
+        return "invalid, out of play"
+    initialRow = int(play[1])
+    if initialRow in key2:
+        initialRow = key2[initialRow]
+    else:
+        return "invalid, out of play"
+    endCol = play[6]
+    if endCol in key:
+        endCol = key[endCol]
+    else:
+        return "invalid, out of play"
+    endRow = int(play[7])
+    if endRow in key2:
+        endRow = key2[endRow]
+    else: 
+        return "invalid, out of play"
+    if endCol == 2 and endRow == 0 and isinstance(board[endRow][endCol], King) and initialCol == 4:
+            board[initialRow][initialCol] = board[endRow][endCol]
+            board[initialRow][initialCol].hasMoved = False
+            board[0][0] = board[0][3]
+            board[0][0].hasMoved = False
+            board[0][3] = "              "
+            board[0][2] = "              "
+    elif endCol == 6 and endRow == 0 and isinstance(board[endRow][endCol], King) and initialCol == 4:
+            board[initialRow][initialCol] = board[endRow][endCol]
+            board[initialRow][initialCol].hasMoved = False
+            board[0][7] = board[0][5]
+            board[0][7].hasMoved = False
+            board[0][5] = "              "
+            board[0][6] = "              "
+    elif endCol == 6 and endRow == 7 and isinstance(board[endRow][endCol], King) and initialCol == 4:
+            board[initialRow][initialCol] = board[endRow][endCol]
+            board[initialRow][initialCol].hasMoved = False
+            board[7][7] = board[7][5]
+            board[7][7].hasMoved = False
+            board[7][5] = "              "
+            board[7][6] = "              "
+    elif endCol == 2 and endRow == 7 and isinstance(board[endRow][endCol], King) and initialCol == 4:
+            board[initialRow][initialCol] = board[endRow][endCol]
+            board[initialRow][initialCol].hasMoved = False
+            board[7][0] = board[7][3]
+            board[7][0].hasMoved = False
+            board[7][3] = "              "
+            board[7][2] = "              "
+    else:
+        if isinstance(board[endRow][endCol], Pawn) and (initialRow == 6 or initialRow == 1):
+            board[endRow][endCol].hasMoved = False
+        
+        #print("putting " + str(board[endRow][endCol]) + " back at " + str(initialRow) + " " + str(initialCol) + " from " + str(endRow) + " " + str(endCol) + "")
+        #print("tookpiece is " + str(tookpiece))
+        #if board[endRow][endCol] == "              ":
+            #printBoard("")
+            #quit()
+        board[initialRow][initialCol] = board[endRow][endCol]
+        board[endRow][endCol] = copy.deepcopy(tookpiece)
+
+
+def move(play, player, flag):
     global lastMove
     key = {'a': 0, 'b': 1, 'c': 2, 'd': 3, 'e': 4, 'f':5, 'g': 6, 'h': 7}
     key2 = {1 : 7, 2 : 6, 3 : 5, 4 : 4, 5 : 3, 6 : 2, 7 : 1, 8 : 0}
@@ -1365,13 +1417,13 @@ def move(play, player):
     if piece == "              ":
         return "no piece there"
     if piece.owner == player:
-        error = piece.move(initialRow, initialCol, endRow, endCol)
+        error = piece.move(initialRow, initialCol, endRow, endCol, flag)
         return error
     else:
         return "not your piece dummy"
 
 def isCheckmate(player):
-    if isCheck(player):
+    if isCheck(player, 1):
         if len(generateMoves(player)) == 0:
             return True
     return False
@@ -1394,7 +1446,7 @@ def printBoard(e):
             print(x, end=" ")
         print("|", end = " ")
         if m == 5:
-            print(e + " " + str(s))
+            print(e + " " + f"{s:.2f}")
         else:
             print("")
         print("  |                |                |                |                |                |                |                |                |")
@@ -1457,7 +1509,7 @@ def play():
         if mOve == "quit":
             print("" + turn2move[(counter + 1) % 2] + " wins by concession.")
             quit()
-        e = move(mOve, turn)
+        e = move(mOve, turn, 1)
         if e != "Success":
             print("invalid move reason: " + e)
         else:
