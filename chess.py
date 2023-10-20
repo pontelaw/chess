@@ -9,7 +9,7 @@
 # Doubled pawn penalty
 # Queen and bishop on same diagonal buff
 # pawn diagonal buff
-# higher buff for moving bishop and knight early
+# higher buff for moving bishop and knight eary
 import copy
 # board creation
 global board
