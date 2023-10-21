@@ -10,6 +10,8 @@
 # Queen and bishop on same diagonal buff
 # pawn diagonal buff
 # higher buff for moving bishop and knight early
+# change pick function to set flag instead of storing extra
+# add pruning checks to pick function
 import copy
 # board creation
 global board
