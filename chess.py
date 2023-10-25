@@ -1310,6 +1310,121 @@ def pick_move():
         whiteKingPos[1] = holder2
     return move_picked
 
+def pickMove2():
+    global board
+    max_eval = 1000
+    local_max = -1000
+    max_eval4 = None
+    move_picked = ""
+    first_b = ""
+    second_b = ""
+    third_b = ""
+    global whiteKingPos
+    global blackKingPos
+    moves = generateMoves("White")
+    took1 = None
+    took2 = None
+    took3 = None 
+    took4 = None
+    took5 = None
+    took6 = None
+    took7 = None
+    took8 = None
+    took9 = None
+    global tookpiece
+    holder = whiteKingPos[0]
+    holder2 = whiteKingPos[1]
+    for move1 in moves:
+        error = move(move1, "White", 0)
+        took1 = detTP()
+        
+        moves2 = generateMoves("Black")
+        holder3 = blackKingPos[0]
+        holder4 = blackKingPos[1]
+        for move2 in moves2:
+                error2 = move(move2, "Black", 0)
+                took9 = detTP()
+                e = eval()
+                if e < max_eval:
+                    max_eval = e
+                    first_b = move2
+                tookpiece = detTP2(took9)
+                undo(move2)
+                blackKingPos[0] = holder3
+                blackKingPos[1] = holder4
+        error3 = move(first_b, "Black", 0)
+        took4 = detTP()
+        holder5 = whiteKingPos[0]
+        holder6 = whiteKingPos[1]
+        moves3 = generateMoves("White")
+        for move3 in moves3:
+            error4 = move(move3, "White", 0)
+            took2 = detTP()
+            moves4 = generateMoves("Black")
+            holder7 = blackKingPos[0]
+            holder8 = blackKingPos[1]
+            max_eval = 1000
+            for move4 in moves4:
+                error5 = move(move4, "Black", 0) # move the eval functions to reduce overhead outside of loop
+                took7 = detTP()
+                e = eval()
+                if e < max_eval:
+                    max_eval = e
+                    second_b = move4
+                tookpiece = detTP2(took7)
+                undo(move4)
+                blackKingPos[0] = holder7
+                blackKingPos[1] = holder8
+            error6 = move(second_b, "Black", 0)
+            took5 = detTP()
+            holder9 = whiteKingPos[0]
+            holder10 = whiteKingPos[1]
+            moves5 = generateMoves("White")
+            for move5 in moves5:
+                error7 = move(move5, "White", 0)
+                took3 = detTP()
+                moves6 = generateMoves("Black")
+                holder11 = blackKingPos[0]
+                holder12 = blackKingPos[1]
+                max_eval = 1000
+                for move6 in moves6:
+                    error8 = move(move6, "Black", 0)
+                    took8 = detTP()
+                    e = eval()
+                    if e < max_eval:
+                        max_eval = e
+                        third_b = move6
+                    tookpiece = detTP2(took8)
+                    undo(move6)
+                    blackKingPos[0] = holder11
+                    blackKingPos[1] = holder12
+                error9 = move(third_b, "Black", 0)
+                took6 = detTP()
+                e = eval()
+                if e > local_max:
+                    local_max = e
+                    move_picked = move1
+                tookpiece = detTP2(took6)
+                undo(third_b)
+                whiteKingPos[0] = holder9
+                whiteKingPos[1] = holder10
+                tookpiece = detTP2(took3)
+                undo(move5)
+            tookpiece = detTP2(took5)
+            undo(second_b)
+            tookpiece = detTP2(took2)
+            undo(move3)
+            whiteKingPos[0] = holder5
+            whiteKingPos[1] = holder6
+        tookpiece = detTP2(took4)
+        undo(first_b)
+        tookpiece = detTP2(took1)
+        undo(move1)
+
+        whiteKingPos[0] = holder
+        whiteKingPos[1] = holder2
+    return move_picked
+
 def detTP():
     global tookpiece
     if tookpiece == "              ":
